@@ -3,7 +3,7 @@ import numpy as np
 class NPNoise:
 	def __init__(self):
 		self.cube_bias = 100
-		self.noise_cube = np.random.random((200, 200, 200, 3))
+		self.noise_cube = np.random.random((200, 200, 200, 3)).astype(np.float32)
 
 	def noise3x3(self, coord):
 		lerp = lambda a, b, x: a + (b-a)*x
