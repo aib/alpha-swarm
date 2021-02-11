@@ -1,0 +1,55 @@
+#version 310 es
+
+#!include "noise3D.glsl"
+
+vec3 noise3(vec3 v)
+{
+	return vec3(
+		snoise(v + vec3(42000., 0., 0.)),
+		snoise(v + vec3(0., 4200., 0.)),
+		snoise(v + vec3(0., 0., 4200.))
+	);
+}
+
+layout (local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
+
+struct Particle {
+	vec3 pos;
+	float life;
+	vec3 vel;
+	float age;
+};
+
+uniform float dt;
+const float LIFE_MEAN = 5.;
+const float LIFE_VARIANCE = 2.;
+const float DAMPENING = .0001;
+const float FIELD_STRENGTH = 5.;
+
+layout (binding = 1) buffer original_t {
+	Particle particles[];
+} original;
+
+layout (binding = 2) buffer swarm_t {
+	Particle particles[];
+} swarm;
+
+void main(void)
+{
+	uint id = gl_GlobalInvocationID.x;
+
+	vec3 field = noise3(swarm.particles[id].pos) * 1.;
+	vec3 dv = FIELD_STRENGTH * field;
+	vec3 dp = (swarm.particles[id].vel + dv/2.) * dt;
+
+	swarm.particles[id].vel += (DAMPENING * -swarm.particles[id].vel) + dv * dt;
+	swarm.particles[id].pos += dp;
+	swarm.particles[id].age += dt;
+
+	if (swarm.particles[id].age >= swarm.particles[id].life) {
+		swarm.particles[id].life = LIFE_MEAN + LIFE_VARIANCE * snoise(vec3(float(id), 0., 0.));
+		swarm.particles[id].age = 0.;
+		swarm.particles[id].pos = vec3(0., 0., 0.);
+		swarm.particles[id].vel = noise3(vec3(float(id) * .001, 0., 1.));
+	}
+}
